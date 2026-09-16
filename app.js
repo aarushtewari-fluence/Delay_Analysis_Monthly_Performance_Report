@@ -498,7 +498,7 @@ fetch("Delay_Dashboard3.json")
                     this.value;
 
                 updateReasonChart(getReasonChartData());
-            
+
 
             }
 
@@ -1051,6 +1051,18 @@ function updateRegionChart(data) {
         );
     });
 
+    const regionalSummaryText =
+        regions.map((region, index) =>
+
+            `${region} ${regionalCompliance[index]}%`
+
+        ).join(" | ");
+
+    document.getElementById(
+        "regionSummaryText"
+    ).textContent =
+        regionalSummaryText;
+
     const regionalColors =
         regionalCompliance.map(value => {
 
@@ -1187,7 +1199,7 @@ function updateReasonChart(data) {
         reasonSummary[reason]++;
     });
 
-    const totalDelayed = delayedData.length;   
+    const totalDelayed = delayedData.length;
 
     const reasons = Object.keys(reasonSummary);
 

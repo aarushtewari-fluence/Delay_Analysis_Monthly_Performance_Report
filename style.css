@@ -1323,3 +1323,13 @@ html {
     contain-intrinsic-size: 800px;
 
 }
+
+#regionSummaryText {
+
+    color: #0B57B7;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+}

@@ -443,9 +443,10 @@
 
 let regionChart;
 let reasonChart;
+let monthlyStackedChart;
 
 
-fetch("Delay_Dashboard3.json")
+fetch("Delay_Dashboard4.json")
     .then(response => {
         if (!response.ok) {
             throw new Error(
@@ -529,6 +530,7 @@ fetch("Delay_Dashboard3.json")
         updateRegionChart(normalizedData);
         updateReasonChart(getReasonChartData());
         updateReasonSummaryTable(normalizedData);
+        updateMonthlyStackedChart(normalizedData);
 
         console.log(monthFilter.innerHTML);
 
@@ -773,6 +775,9 @@ fetch("Delay_Dashboard3.json")
         // -----------------------------
 
         const monthOrder = [
+            "October",
+            "November",
+            "December",
             "January",
             "February",
             "March",
@@ -781,10 +786,8 @@ fetch("Delay_Dashboard3.json")
             "June",
             "July",
             "August",
-            "September",
-            "October",
-            "November",
-            "December"
+            "September"
+
         ];
 
         const months = Object.keys(monthSummary).sort(
@@ -843,6 +846,83 @@ fetch("Delay_Dashboard3.json")
         }
 
 
+        const regions = [
+            "Americas",
+            "APAC",
+            "EMEA"
+        ];
+
+        const regionColors = {
+
+            APAC: "#F4B400",       // Light Blue
+
+            EMEA: "#19B6C8",       // Dark Blue
+
+            Americas: "#0057B8"   // Orange
+
+        };
+
+
+        const regionalDatasets = [];
+
+        regions.forEach(region => {
+
+            const regionCompliance = months.map(month => {
+
+                const regionMonthData = normalizedData.filter(
+                    row =>
+                        row.Month === month &&
+                        row.Region === region
+                );
+
+                const total =
+                    regionMonthData.length;
+
+                const onTime =
+                    regionMonthData.filter(
+                        row =>
+                            row.Status === "on time"
+                    ).length;
+
+                return total === 0
+                    ? null
+                    : Number(
+                        (
+                            onTime /
+                            total *
+                            100
+                        ).toFixed(2)
+                    );
+
+            });
+
+            regionalDatasets.push({
+
+                label: region,
+
+                data: regionCompliance,
+
+                borderColor:
+                    regionColors[region],
+
+                backgroundColor:
+                    regionColors[region],
+
+                borderWidth: 3,
+
+                pointRadius: 2,
+
+                pointHoverRadius: 4,
+
+                tension: 0.3,
+
+                fill: false
+
+            });
+
+        });
+
+
         // -----------------------------
         // 9. Create monthly trend chart
         // -----------------------------
@@ -853,24 +933,29 @@ fetch("Delay_Dashboard3.json")
             data: {
                 labels: months,
 
-                datasets: [{
-                    label: "On-Time Compliance (%)",
-                    data: monthlyCompliance,
+                datasets: [
 
-                    borderColor: "#1677ff",
-                    backgroundColor:
-                        "rgba(22, 119, 255, 0.12)",
+                    {
+                        borderColor: "#000000",
 
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.3,
+                        label: "Overall",
 
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: "#1677ff",
-                    pointBorderColor: "#ffffff",
-                    pointBorderWidth: 2
-                }]
+                        data: monthlyCompliance,
+
+                        backgroundColor:
+                            "rgba(17,38,61,0.10)",
+
+                        pointRadius: 3,
+
+                        tension: 0.3,
+
+                        fill: false
+
+                    },
+
+                    ...regionalDatasets
+
+                ]
             },
 
             options: {
@@ -884,7 +969,25 @@ fetch("Delay_Dashboard3.json")
 
                 plugins: {
                     legend: {
-                        display: false
+
+                        display: true,
+
+                        position: "top",
+
+                        labels: {
+
+                            boxWidth: 12,
+
+                            boxHeight: 12,
+
+                            padding: 12,
+
+                            font: {
+                                size: 11
+                            }
+
+                        }
+
                     },
 
                     tooltip: {
@@ -1063,16 +1166,20 @@ function updateRegionChart(data) {
     ).textContent =
         regionalSummaryText;
 
+    const regionColors = {
+
+        APAC: "#F4B400",       // Light Blue
+
+        EMEA: "#19B6C8",       // Dark Blue
+
+        Americas: "#0057B8" // Orange
+
+    };
+
     const regionalColors =
-        regionalCompliance.map(value => {
-
-            if (value >= 0) {
-                return " #0B57B7 ";
-            }
-
-            return "#808080";
-        });
-
+        regions.map(region =>
+            regionColors[region]
+        );
     const regionCanvas =
         document.getElementById("regionChart");
 
@@ -1132,7 +1239,7 @@ function updateRegionChart(data) {
 
             scales: {
                 y: {
-                    beginAtZero: true,
+                    min: 80,
                     max: 100,
 
                     ticks: {
@@ -1255,10 +1362,32 @@ function updateReasonChart(data) {
                 // Keep counts for tooltips
                 reasonCounts: reasonCounts,
 
-                backgroundColor: [
-                    "#0B57B7",
-                    "#667085"
-                ],
+                backgroundColor: reasons.map(reason => {
+
+                    const normalizedReason =
+                        String(reason)
+                            .toLowerCase()
+                            .trim();
+
+                    if (normalizedReason.includes("central das")) {
+                        return "#19B6C8";   // EMEA Teal
+                    }
+
+                    if (normalizedReason.includes("performance analyst")) {
+                        return "#F4B400";   // APAC Gold
+                    }
+
+                    if (normalizedReason.includes("fse")) {
+                        return "#000000";   // Global Black
+                    }
+
+                    if (normalizedReason.includes("availability logic")) {
+                        return "#8E44AD";   // Purple
+                    }
+
+                    return "#0057B8";       // Americas Blue
+
+                }),
 
                 borderRadius: 8,
                 borderSkipped: false
@@ -1326,6 +1455,547 @@ function updateReasonChart(data) {
             }
         }
     });
+}
+
+
+function updateMonthlyStackedChart(data) {
+
+    const canvas =
+        document.getElementById(
+            "monthlyStackedChart"
+        );
+
+    if (!canvas) {
+
+        console.error(
+            'Canvas id="monthlyStackedChart" was not found.'
+        );
+
+        return;
+    }
+
+
+    // -----------------------------------------
+    // 1. Define month order
+    // -----------------------------------------
+
+    const monthOrder = [
+        "October",
+        "November",
+        "December",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September"
+
+    ];
+
+
+    // -----------------------------------------
+    // 2. Normalize outcome names
+    // -----------------------------------------
+
+    function getOutcome(row) {
+
+        const status =
+            String(row.Status || "")
+                .trim()
+                .toLowerCase();
+
+        const rawReason =
+            String(
+                row.Reason ||
+                "Reason not provided"
+            )
+                .trim();
+
+        const reason =
+            rawReason.toLowerCase();
+
+        if (status === "on time") {
+
+            return "On Time";
+
+        }
+
+        if (
+            reason.includes("central das")
+        ) {
+
+            return "No data on Central DAS";
+
+        }
+
+        if (
+            reason.includes(
+                "performance analyst"
+            )
+        ) {
+
+            return "Performance Analyst";
+
+        }
+
+        if (
+            reason.includes("fse")
+        ) {
+
+            return "FSE-related delay";
+
+        }
+
+        return rawReason ||
+            "Reason not provided";
+    }
+
+
+    // -----------------------------------------
+    // 3. Find months present in the data
+    // -----------------------------------------
+
+    const months =
+        [...new Set(
+            data.map(
+                row =>
+                    String(
+                        row.Month || ""
+                    ).trim()
+            )
+                .filter(Boolean)
+        )]
+            .sort(
+                (firstMonth, secondMonth) =>
+                    monthOrder.indexOf(firstMonth) -
+                    monthOrder.indexOf(secondMonth)
+            );
+
+
+    // -----------------------------------------
+    // 4. Create month and outcome summary
+    // -----------------------------------------
+
+    const monthOutcomeSummary = {};
+
+    months.forEach(month => {
+
+        monthOutcomeSummary[month] = {};
+
+    });
+
+    data.forEach(row => {
+
+        const month =
+            String(row.Month || "").trim();
+
+        if (!month) {
+            return;
+        }
+
+        const outcome =
+            getOutcome(row);
+
+        if (!monthOutcomeSummary[month]) {
+
+            monthOutcomeSummary[month] = {};
+
+        }
+
+        if (
+            !monthOutcomeSummary[month][outcome]
+        ) {
+
+            monthOutcomeSummary[month][outcome] = 0;
+
+        }
+
+        monthOutcomeSummary[month][outcome]++;
+
+    });
+
+
+    // -----------------------------------------
+    // 5. Find all outcome categories
+    // -----------------------------------------
+
+    const outcomeSet = new Set();
+
+    Object.values(
+        monthOutcomeSummary
+    ).forEach(monthSummary => {
+
+        Object.keys(
+            monthSummary
+        ).forEach(outcome => {
+
+            outcomeSet.add(outcome);
+
+        });
+
+    });
+
+    const preferredOutcomeOrder = [
+        "On Time",
+        "No data on Central DAS",
+        "Performance Analyst",
+        "FSE-related delay"
+    ];
+
+    const outcomes =
+        [...outcomeSet].sort(
+            (firstOutcome, secondOutcome) => {
+
+                const firstIndex =
+                    preferredOutcomeOrder.indexOf(
+                        firstOutcome
+                    );
+
+                const secondIndex =
+                    preferredOutcomeOrder.indexOf(
+                        secondOutcome
+                    );
+
+                if (
+                    firstIndex === -1 &&
+                    secondIndex === -1
+                ) {
+
+                    return firstOutcome.localeCompare(
+                        secondOutcome
+                    );
+
+                }
+
+                if (firstIndex === -1) {
+                    return 1;
+                }
+
+                if (secondIndex === -1) {
+                    return -1;
+                }
+
+                return firstIndex -
+                    secondIndex;
+            }
+        );
+
+
+    // -----------------------------------------
+    // 6. Define outcome colors
+    // -----------------------------------------
+
+    const outcomeColors = {
+        "On Time": "#0057B8",                        // Americas Blue
+        "No data on Central DAS": "#19B6C8",        // EMEA Teal
+        "Performance Analyst": "#F4B400",           // APAC Gold
+        "FSE-related delay": "#000000",             // Global Black
+        "Availability Logic under discussion": "#8E44AD" // Purple
+    };
+
+
+    // -----------------------------------------
+    // 7. Build Chart.js datasets
+    // -----------------------------------------
+
+    const datasets =
+        outcomes.map(outcome => {
+
+            return {
+
+                label: outcome,
+
+                data: months.map(month => {
+
+                    return (
+                        monthOutcomeSummary[
+                        month
+                        ][outcome] || 0
+                    );
+
+                }),
+
+                backgroundColor:
+                    outcomeColors[outcome] ||
+                    "#94A3B8",
+
+                borderColor: "#ffffff",
+
+                borderWidth: 0,
+
+                borderSkipped: false,
+
+                barPercentage: 0.72,
+
+                categoryPercentage: 0.75
+
+            };
+
+        });
+
+
+    // -----------------------------------------
+    // 8. Destroy previous chart
+    // -----------------------------------------
+
+    if (monthlyStackedChart) {
+
+        monthlyStackedChart.destroy();
+
+    }
+
+
+    // -----------------------------------------
+    // 9. Create stacked chart
+    // -----------------------------------------
+
+    monthlyStackedChart =
+        new Chart(canvas, {
+
+            type: "bar",
+
+            data: {
+
+                labels: months,
+
+                datasets: datasets
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                interaction: {
+
+                    mode: "index",
+
+                    intersect: false
+
+                },
+
+                plugins: {
+
+                    legend: {
+
+                        display: true,
+
+                        position: "top",
+
+                        labels: {
+
+                            usePointStyle: true,
+
+                            pointStyle: "circle",
+
+                            boxWidth: 8,
+
+                            boxHeight: 8,
+
+                            padding: 14,
+
+                            color: "#4B5563",
+
+                            font: {
+
+                                size: 11
+
+                            }
+
+                        }
+
+                    },
+
+                    tooltip: {
+
+                        callbacks: {
+
+                            label: function (
+                                context
+                            ) {
+
+                                const count =
+                                    context.parsed.y;
+
+                                const monthTotal =
+                                    context.chart.data
+                                        .datasets
+                                        .reduce(
+                                            (
+                                                sum,
+                                                dataset
+                                            ) => {
+
+                                                return (
+                                                    sum +
+                                                    (
+                                                        Number(
+                                                            dataset
+                                                                .data[
+                                                            context
+                                                                .dataIndex
+                                                            ]
+                                                        ) ||
+                                                        0
+                                                    )
+                                                );
+
+                                            },
+                                            0
+                                        );
+
+                                const percentage =
+                                    monthTotal === 0
+                                        ? 0
+                                        : (
+                                            count /
+                                            monthTotal *
+                                            100
+                                        ).toFixed(1);
+
+                                return (
+                                    `${context.dataset.label}: ` +
+                                    `${count} report` +
+                                    `${count === 1 ? "" : "s"}` +
+                                    ` (${percentage}%)`
+                                );
+
+                            },
+
+                            footer: function (
+                                tooltipItems
+                            ) {
+
+                                const monthIndex =
+                                    tooltipItems[0]
+                                        .dataIndex;
+
+                                const total =
+                                    tooltipItems[0]
+                                        .chart.data
+                                        .datasets
+                                        .reduce(
+                                            (
+                                                sum,
+                                                dataset
+                                            ) => {
+
+                                                return (
+                                                    sum +
+                                                    (
+                                                        Number(
+                                                            dataset
+                                                                .data[
+                                                            monthIndex
+                                                            ]
+                                                        ) ||
+                                                        0
+                                                    )
+                                                );
+
+                                            },
+                                            0
+                                        );
+
+                                return (
+                                    `Total reports: ${total}`
+                                );
+
+                            }
+
+                        }
+
+                    }
+
+                },
+
+                scales: {
+
+                    x: {
+
+                        stacked: true,
+
+                        ticks: {
+
+                            color: "#0B57B7"
+
+                        },
+
+                        grid: {
+
+                            display: false
+
+                        },
+
+                        border: {
+
+                            color: "#0B57B7"
+
+                        },
+
+                        title: {
+
+                            display: true,
+
+                            text:
+                                "Reporting Month",
+
+                            color: "#0B57B7"
+
+                        }
+
+                    },
+
+                    y: {
+
+                        stacked: true,
+
+                        beginAtZero: true,
+
+                        ticks: {
+
+                            color: "#0B57B7",
+
+                            precision: 0
+
+                        },
+
+                        grid: {
+
+                            color: "#E3EDF9"
+
+                        },
+
+                        border: {
+
+                            color: "#0B57B7"
+
+                        },
+
+                        title: {
+
+                            display: true,
+
+                            text:
+                                "Number of Reports",
+
+                            color: "#0B57B7"
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
 }
 
 function updateReasonSummaryTable(data) {

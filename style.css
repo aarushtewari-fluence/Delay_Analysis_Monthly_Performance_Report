@@ -1333,3 +1333,11 @@ html {
     font-weight: 600;
 
 }
+
+.stacked-chart-container {
+
+    height: 320px !important;
+
+    min-height: 320px !important;
+
+}
